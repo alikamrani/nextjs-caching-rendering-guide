@@ -3,10 +3,6 @@
 
 import { revalidateTag, revalidatePath } from "next/cache";
 
-const baseUrl = process.env.VERCEL_URL
-  ? `https://${process.env.VERCEL_URL}`
-  : "http://localhost:3000";
-
 // Server Actions for cache invalidation
 async function invalidateProductsTag() {
   "use server";
@@ -32,8 +28,37 @@ async function invalidateEntirePage() {
   revalidatePath("/caching/on-demand");
 }
 
+// Fallback data for build time
+const fallbackData = {
+  products: [{ id: 1, name: "Sample Product", price: 29.99 }],
+  meta: {
+    fetchedAt: new Date().toISOString(),
+    totalRequests: 1,
+  },
+};
+
 // Fetch functions with cache tags
 async function fetchProductsWithTags(category?: string) {
+  // During build time, return fallback data
+  if (process.env.NODE_ENV === "production" && !process.env.VERCEL_URL) {
+    console.log(
+      `🏗️ Build time: Using fallback data for ${category || "all"} products`
+    );
+    return {
+      ...fallbackData,
+      products:
+        category === "books"
+          ? [{ id: 1, name: "Sample Book", price: 19.99 }]
+          : category === "tools"
+          ? [{ id: 2, name: "Sample Tool", price: 39.99 }]
+          : fallbackData.products,
+    };
+  }
+
+  const baseUrl = process.env.VERCEL_URL
+    ? `https://${process.env.VERCEL_URL}`
+    : "http://localhost:3000";
+
   const url = category
     ? `${baseUrl}/api/products?category=${category}`
     : `${baseUrl}/api/products`;
@@ -46,14 +71,31 @@ async function fetchProductsWithTags(category?: string) {
     `🏷️ Fetching ${category || "all"} products with tags: ${tags.join(", ")}`
   );
 
-  const res = await fetch(url, {
-    next: {
-      tags,
-      revalidate: 3600, // Long cache, but can be invalidated on-demand
-    },
-  });
+  try {
+    const res = await fetch(url, {
+      next: {
+        tags,
+        revalidate: 3600, // Long cache, but can be invalidated on-demand
+      },
+    });
 
-  return res.json();
+    if (!res.ok) {
+      throw new Error(`HTTP error! status: ${res.status}`);
+    }
+
+    return res.json();
+  } catch (error) {
+    console.log(`⚠️ Fetch failed, using fallback data:`, error);
+    return {
+      ...fallbackData,
+      products:
+        category === "books"
+          ? [{ id: 1, name: "Sample Book", price: 19.99 }]
+          : category === "tools"
+          ? [{ id: 2, name: "Sample Tool", price: 39.99 }]
+          : fallbackData.products,
+    };
+  }
 }
 
 export default async function OnDemandPage() {

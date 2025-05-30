@@ -1,40 +1,95 @@
 // CACHE TAGS EXAMPLE
 // Demonstrates how to use cache tags for targeted invalidation
 
-const baseUrl = process.env.VERCEL_URL
-  ? `https://${process.env.VERCEL_URL}`
-  : "http://localhost:3000";
+// Fallback data for build time
+const fallbackData = {
+  products: [{ id: 1, name: "Sample Product", price: 29.99 }],
+  meta: {
+    fetchedAt: new Date().toISOString(),
+    totalRequests: 1,
+  },
+};
 
 // Fetch products with cache tags
 async function fetchProductsByCategory(category: string) {
   console.log(`🏷️ Fetching ${category} products with cache tags...`);
 
-  const res = await fetch(`${baseUrl}/api/products?category=${category}`, {
-    next: {
-      tags: [`products-${category}`, "products-all"],
-      revalidate: 3600, // 1 hour, but can be invalidated by tags
-    },
-  });
-
-  if (!res.ok) {
-    throw new Error("Failed to fetch products");
+  // During build time, return fallback data
+  if (process.env.NODE_ENV === "production" && !process.env.VERCEL_URL) {
+    console.log(`🏗️ Build time: Using fallback data for ${category} products`);
+    return {
+      ...fallbackData,
+      products:
+        category === "books"
+          ? [{ id: 1, name: "Sample Book", price: 19.99 }]
+          : category === "tools"
+          ? [{ id: 2, name: "Sample Tool", price: 39.99 }]
+          : fallbackData.products,
+    };
   }
 
-  return res.json();
+  const baseUrl = process.env.VERCEL_URL
+    ? `https://${process.env.VERCEL_URL}`
+    : "http://localhost:3000";
+
+  try {
+    const res = await fetch(`${baseUrl}/api/products?category=${category}`, {
+      next: {
+        tags: [`products-${category}`, "products-all"],
+        revalidate: 3600, // 1 hour, but can be invalidated by tags
+      },
+    });
+
+    if (!res.ok) {
+      throw new Error("Failed to fetch products");
+    }
+
+    return res.json();
+  } catch (error) {
+    console.log(`⚠️ Fetch failed, using fallback data:`, error);
+    return {
+      ...fallbackData,
+      products:
+        category === "books"
+          ? [{ id: 1, name: "Sample Book", price: 19.99 }]
+          : category === "tools"
+          ? [{ id: 2, name: "Sample Tool", price: 39.99 }]
+          : fallbackData.products,
+    };
+  }
 }
 
 // Fetch all products with cache tags
 async function fetchAllProducts() {
   console.log("🏷️ Fetching all products with cache tags...");
 
-  const res = await fetch(`${baseUrl}/api/products`, {
-    next: {
-      tags: ["products-all"],
-      revalidate: 3600,
-    },
-  });
+  // During build time, return fallback data
+  if (process.env.NODE_ENV === "production" && !process.env.VERCEL_URL) {
+    console.log(`🏗️ Build time: Using fallback data for all products`);
+    return fallbackData;
+  }
 
-  return res.json();
+  const baseUrl = process.env.VERCEL_URL
+    ? `https://${process.env.VERCEL_URL}`
+    : "http://localhost:3000";
+
+  try {
+    const res = await fetch(`${baseUrl}/api/products`, {
+      next: {
+        tags: ["products-all"],
+        revalidate: 3600,
+      },
+    });
+
+    if (!res.ok) {
+      throw new Error("Failed to fetch products");
+    }
+
+    return res.json();
+  } catch (error) {
+    console.log(`⚠️ Fetch failed, using fallback data:`, error);
+    return fallbackData;
+  }
 }
 
 export default async function CacheTagsPage() {

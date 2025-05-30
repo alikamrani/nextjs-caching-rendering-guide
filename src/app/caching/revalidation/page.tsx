@@ -1,52 +1,139 @@
 // TIME-BASED REVALIDATION EXAMPLE
 // Demonstrates different revalidation intervals
 
-const baseUrl = process.env.VERCEL_URL
-  ? `https://${process.env.VERCEL_URL}`
-  : "http://localhost:3000";
+// Fallback data for build time
+const fallbackData = {
+  products: [{ id: 1, name: "Sample Product", price: 29.99 }],
+  meta: {
+    fetchedAt: new Date().toISOString(),
+    totalRequests: 1,
+  },
+};
 
 // 10 second revalidation
 async function fetchQuickUpdate() {
   console.log("⚡ Fetching with 10-second revalidation...");
 
-  const res = await fetch(`${baseUrl}/api/products?category=tools`, {
-    next: { revalidate: 10 },
-  });
+  // During build time, return fallback data
+  if (process.env.NODE_ENV === "production" && !process.env.VERCEL_URL) {
+    console.log("🏗️ Build time: Using fallback data for quick update");
+    return {
+      ...fallbackData,
+      products: [{ id: 1, name: "Quick Tool", price: 39.99 }],
+    };
+  }
 
-  return res.json();
+  const baseUrl = process.env.VERCEL_URL
+    ? `https://${process.env.VERCEL_URL}`
+    : "http://localhost:3000";
+
+  try {
+    const res = await fetch(`${baseUrl}/api/products?category=tools`, {
+      next: { revalidate: 10 },
+    });
+
+    if (!res.ok) throw new Error("Failed to fetch");
+    return res.json();
+  } catch (error) {
+    console.log("⚠️ Quick fetch failed, using fallback:", error);
+    return {
+      ...fallbackData,
+      products: [{ id: 1, name: "Quick Tool", price: 39.99 }],
+    };
+  }
 }
 
 // 30 second revalidation
 async function fetchMediumUpdate() {
   console.log("🔄 Fetching with 30-second revalidation...");
 
-  const res = await fetch(`${baseUrl}/api/products?category=books`, {
-    next: { revalidate: 30 },
-  });
+  // During build time, return fallback data
+  if (process.env.NODE_ENV === "production" && !process.env.VERCEL_URL) {
+    console.log("🏗️ Build time: Using fallback data for medium update");
+    return {
+      ...fallbackData,
+      products: [{ id: 1, name: "Medium Book", price: 19.99 }],
+    };
+  }
 
-  return res.json();
+  const baseUrl = process.env.VERCEL_URL
+    ? `https://${process.env.VERCEL_URL}`
+    : "http://localhost:3000";
+
+  try {
+    const res = await fetch(`${baseUrl}/api/products?category=books`, {
+      next: { revalidate: 30 },
+    });
+
+    if (!res.ok) throw new Error("Failed to fetch");
+    return res.json();
+  } catch (error) {
+    console.log("⚠️ Medium fetch failed, using fallback:", error);
+    return {
+      ...fallbackData,
+      products: [{ id: 1, name: "Medium Book", price: 19.99 }],
+    };
+  }
 }
 
 // 60 second revalidation
 async function fetchSlowUpdate() {
   console.log("🐌 Fetching with 60-second revalidation...");
 
-  const res = await fetch(`${baseUrl}/api/products`, {
-    next: { revalidate: 60 },
-  });
+  // During build time, return fallback data
+  if (process.env.NODE_ENV === "production" && !process.env.VERCEL_URL) {
+    console.log("🏗️ Build time: Using fallback data for slow update");
+    return fallbackData;
+  }
 
-  return res.json();
+  const baseUrl = process.env.VERCEL_URL
+    ? `https://${process.env.VERCEL_URL}`
+    : "http://localhost:3000";
+
+  try {
+    const res = await fetch(`${baseUrl}/api/products`, {
+      next: { revalidate: 60 },
+    });
+
+    if (!res.ok) throw new Error("Failed to fetch");
+    return res.json();
+  } catch (error) {
+    console.log("⚠️ Slow fetch failed, using fallback:", error);
+    return fallbackData;
+  }
 }
 
 // No revalidation (static)
 async function fetchStatic() {
   console.log("🗿 Fetching static data (no revalidation)...");
 
-  const res = await fetch(`${baseUrl}/api/products?category=electronics`, {
-    cache: "force-cache",
-  });
+  // During build time, return fallback data
+  if (process.env.NODE_ENV === "production" && !process.env.VERCEL_URL) {
+    console.log("🏗️ Build time: Using fallback data for static");
+    return {
+      ...fallbackData,
+      products: [{ id: 1, name: "Static Electronics", price: 99.99 }],
+    };
+  }
 
-  return res.json();
+  const baseUrl = process.env.VERCEL_URL
+    ? `https://${process.env.VERCEL_URL}`
+    : "http://localhost:3000";
+
+  try {
+    const res = await fetch(`${baseUrl}/api/products?category=electronics`, {
+      cache: "force-cache",
+    });
+
+    if (!res.ok) throw new Error("Failed to fetch");
+    return res.json();
+  } catch (error) {
+    console.log("⚠️ Static fetch failed, using fallback:", error);
+    return {
+      ...fallbackData,
+      products: [{ id: 1, name: "Static Electronics", price: 99.99 }],
+    };
+  }
 }
 
 export default async function RevalidationPage() {
